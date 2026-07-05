@@ -250,7 +250,11 @@ with tab3:
 # ── TAB 4: BATCH CSV (Week 1/2 extended — filter + breakdown) ────────────────
 with tab4:
     st.subheader("Batch Analyze from CSV File")
-    st.info("Upload a CSV with a column named **'review'** (and optionally **'product'**).")
+    st.info(
+        "Upload a CSV with a review text column such as **'review'**, **'tweet_text'**, "
+        "**'full_text'**, **'text'**, **'content'**, **'comment'**, or **'message'** "
+        "(and optionally **'product'**)."
+    )
 
     uploaded_file = st.file_uploader("Choose a CSV file", type=["csv"])
 
@@ -284,6 +288,9 @@ with tab4:
                         st.error(result["error"])
                     else:
                         st.success(f"Analysis complete! {result['total_reviews']} reviews processed.")
+                        detected_review_column = result.get("detected_review_column")
+                        if detected_review_column:
+                            st.caption(f"Detected review column: {detected_review_column}")
                         skipped = result.get("skipped_rows", 0)
                         if skipped:
                             st.warning(f"⚠️ {skipped} row(s) were skipped (empty or malformed) and did not affect the results.")

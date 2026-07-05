@@ -14,6 +14,7 @@ AI-powered sentiment analysis and review summarization tool, built with **FastAP
 - **Text summarization** — paste any long review or paragraph, get a concise extractive summary
 - **Product dashboard** — verdict banner, sentiment chart, and top pros/cons for any product in the dataset
 - **Batch CSV analysis** — upload a file of reviews, get per-product sentiment breakdown + charts
+- **Social export columns** - batch uploads accept `review`, `tweet_text`, `full_text`, `text`, `content`, `comment`, or `message`
 - **History & reports** — every analysis is logged to SQLite; filter history and export CSV/TXT reports
 - **Live health check** — sidebar indicator shows backend connection and model-load status
 - **Hardened error handling** — malformed input, empty rows, and bad batches degrade gracefully instead of crashing
@@ -101,6 +102,11 @@ streamlit run app.py
 | `/history/` | DELETE | Clear all logged history |
 | `/export-report/` | GET | Download a CSV/TXT report for a product |
 | `/health/` | GET | Backend status, model-loaded state, dataset row count |
+
+CSV upload endpoints normalize the detected review text field to the existing
+`review` contract internally and return `detected_review_column` in the JSON
+response. This keeps the backend compatible with exports that name the text
+field `tweet_text`, `full_text`, `text`, `content`, `comment`, or `message`.
 
 ## 📁 Project Structure
 

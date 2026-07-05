@@ -42,11 +42,44 @@ sentiment_pipeline = pipeline("sentiment-analysis")
 
 # ── In-memory dataset ────────────────────────────────────────────────────────
 DATA_PATH = os.path.join(os.path.dirname(__file__), "data", "reviews.csv")
+REVIEW_COLUMN_ALIASES = (
+    "review",
+    "tweet_text",
+    "full_text",
+    "text",
+    "content",
+    "comment",
+    "message",
+)
+
+
+def _find_review_column(df: pd.DataFrame):
+    normalized_columns = {str(column).strip().lower(): column for column in df.columns}
+    for alias in REVIEW_COLUMN_ALIASES:
+        column = normalized_columns.get(alias)
+        if column is not None:
+            return column
+    return None
+
+
+def _normalize_review_column(df: pd.DataFrame) -> tuple[pd.DataFrame, str]:
+    column = _find_review_column(df)
+    if column is None:
+        supported = ", ".join(REVIEW_COLUMN_ALIASES)
+        raise ValueError(f"CSV must have one review column: {supported}")
+
+    normalized = df.copy()
+    if column != "review":
+        normalized["review"] = normalized[column]
+    return normalized, str(column)
+
 
 def _load_dataset() -> pd.DataFrame:
     try:
         df = pd.read_csv(DATA_PATH)
-        if "review" not in df.columns:
+        try:
+            df, _ = _normalize_review_column(df)
+        except ValueError:
             return pd.DataFrame(columns=["product", "review"])
         if "product" not in df.columns:
             df["product"] = "Unknown"
@@ -237,8 +270,10 @@ async def analyze_batch(
     except Exception:
         return {"error": "Invalid CSV file"}
 
-    if "review" not in df.columns:
-        return {"error": "CSV must have a column named 'review'"}
+    try:
+        df, detected_review_column = _normalize_review_column(df)
+    except ValueError as error:
+        return {"error": str(error)}
     if "product" not in df.columns:
         df["product"] = "Unknown"
     df = df.fillna("")
@@ -289,6 +324,7 @@ async def analyze_batch(
         "negative_count": negative,
         "neutral_count":  neutral,
         "skipped_rows": skipped_rows,
+        "detected_review_column": detected_review_column,
         "product_breakdown": breakdown,
         "results": results
     }
@@ -309,8 +345,10 @@ async def summarize_reviews(
     except Exception:
         return {"error": "Invalid CSV file"}
 
-    if "review" not in df.columns:
-        return {"error": "CSV must have a column named 'review'"}
+    try:
+        df, detected_review_column = _normalize_review_column(df)
+    except ValueError as error:
+        return {"error": str(error)}
     if "product" not in df.columns:
         df["product"] = "Unknown"
     df = df.fillna("")
@@ -326,6 +364,7 @@ async def summarize_reviews(
     return {
         "product_filter": product or "All",
         "total_reviews_analyzed": len(reviews),
+        "detected_review_column": detected_review_column,
         **pc
     }
 
@@ -438,8 +477,10 @@ async def reload_dataset(file: UploadFile = File(...)):
     except Exception:
         return {"error": "Invalid CSV file"}
 
-    if "review" not in df.columns:
-        return {"error": "CSV must have a column named 'review'"}
+    try:
+        df, detected_review_column = _normalize_review_column(df)
+    except ValueError as error:
+        return {"error": str(error)}
     if "product" not in df.columns:
         df["product"] = "Unknown"
 
@@ -447,6 +488,7 @@ async def reload_dataset(file: UploadFile = File(...)):
     return {
         "message": "Dataset reloaded successfully",
         "rows": len(_dataset),
+        "detected_review_column": detected_review_column,
         "products": sorted(_dataset["product"].dropna().unique().tolist())
     }
 
